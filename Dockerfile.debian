@@ -1,3 +1,5 @@
 FROM bitnami/minideb:stretch
 
 RUN install_packages build-essential
+
+# vim: ft=dockerfile
