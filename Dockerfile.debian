@@ -1,4 +1,4 @@
-FROM bitnami/minideb:stretch
+FROM bitnami/minideb:jessie
 
 RUN install_packages build-essential
 

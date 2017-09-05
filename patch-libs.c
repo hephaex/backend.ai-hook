@@ -15,8 +15,8 @@
 
 typedef long (*orig_sysconf_ftype)(int flag);
 
-typedef int (*orig_scanf_ftype)(const char *restrict format, ...);
-typedef int (*orig_vscanf_ftype)(const char *restrict format, va_list arg);
+typedef int (*orig_scanf_ftype)(const char *format, ...);
+typedef int (*orig_vscanf_ftype)(const char *format, va_list arg);
 
 static int nproc_from_sysfs_cpuset()
 {
@@ -72,7 +72,7 @@ long sysconf(int flag)
     return orig_sysconf(flag);
 }
 
-int scanf(const char *restrict format, ...)
+int scanf(const char *format, ...)
 {
     va_list args;
     char buffer[1024];
@@ -105,7 +105,7 @@ int scanf(const char *restrict format, ...)
     return ret;
 }
 
-int vscanf(const char *restrict format, va_list args)
+int vscanf(const char *format, va_list args)
 {
     char buffer[1024];
     struct sockaddr_in addr;
