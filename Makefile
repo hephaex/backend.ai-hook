@@ -7,4 +7,4 @@ debian:
 	docker run --rm -it -v $(shell pwd):/root lablup/jail-hook-dev:debian /bin/sh -c 'cd /root; make inner'
 
 inner:
-	gcc -Wall -shared -fPIC -o patch-libs.so patch-libs.c -ldl
+	gcc -Wall -shared -fPIC -o libbaihook.so patch-cuda.c patch-libs.c -ldl

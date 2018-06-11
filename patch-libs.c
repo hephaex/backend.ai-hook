@@ -1,22 +1,29 @@
-#define _GNU_SOURCE
-#include <dlfcn.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 
 #include <errno.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-typedef long (*orig_sysconf_ftype)(int flag);
+#include <unistd.h>
+#define __USE_GNU
+#include <dlfcn.h>
 
+typedef long (*orig_sysconf_ftype)(int flag);
 typedef int (*orig_scanf_ftype)(const char *format, ...);
 typedef int (*orig_vscanf_ftype)(const char *format, va_list arg);
+
+static orig_sysconf_ftype orig_sysconf = NULL;
+
+static const char *input_host = "127.0.0.1";
+static const int input_port = 65000;
+
 
 static int nproc_from_sysfs_cpuset()
 {
@@ -60,8 +67,10 @@ static int nproc_from_sysfs_cpuset()
 
 long sysconf(int flag)
 {
-    orig_sysconf_ftype orig_sysconf;
-    orig_sysconf = (orig_sysconf_ftype) dlsym(RTLD_NEXT, "sysconf");
+    if (orig_sysconf == NULL) {
+        orig_sysconf = (orig_sysconf_ftype) dlsym(RTLD_NEXT, "sysconf");
+    }
+    assert(orig_sysconf != NULL);
     switch (flag) {
     case _SC_NPROCESSORS_ONLN:
     case _SC_NPROCESSORS_CONF:
@@ -87,8 +96,8 @@ int scanf(const char *format, ...)
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    addr.sin_port = htons(65000);
+    addr.sin_addr.s_addr = inet_addr(input_host);
+    addr.sin_port = htons(input_port);
 
     if (connect(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         perror("connect");
@@ -119,8 +128,8 @@ int vscanf(const char *format, va_list args)
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    addr.sin_port = htons(65000);
+    addr.sin_addr.s_addr = inet_addr(input_host);
+    addr.sin_port = htons(input_port);
 
     if (connect(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         perror("connect");
