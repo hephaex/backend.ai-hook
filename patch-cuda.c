@@ -1,3 +1,5 @@
+#define _GNU_SOURCE   // enable GNU extensions
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -5,7 +7,6 @@
 #include <limits.h>
 
 #include <unistd.h>
-#define __USE_GNU
 #include <dlfcn.h>
 
 /* Taken from NVIDIA's official documentation (CUDA 9.0) */

@@ -1,3 +1,5 @@
+#define _GNU_SOURCE   // enable GNU extensions
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -12,7 +14,6 @@
 #include <sys/socket.h>
 
 #include <unistd.h>
-#define __USE_GNU
 #include <dlfcn.h>
 
 typedef long (*orig_sysconf_ftype)(int flag);
