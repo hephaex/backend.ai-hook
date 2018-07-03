@@ -332,6 +332,5 @@ cudaError_t cudaGetDeviceProperties(struct cudaDeviceProp *prop, int deviceId)
             prop->multiProcessorCount = min(gpu_proc_limit,
                                             prop->multiProcessorCount);
     }
-    fprintf(stderr, "CUDA GET-DEV-PROPS HOOK FINISH\n");
     return ret;
 }
