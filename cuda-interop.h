@@ -50,6 +50,7 @@ struct cudaDeviceProp {
     int ECCEnabled;
     int pciBusID;
     int pciDeviceID;
+    int pciDomainID;
     int tccDriver;
     int asyncEngineCount;
     int unifiedAddressing;
@@ -62,9 +63,10 @@ struct cudaDeviceProp {
     int localL1CacheSupported;
     size_t sharedMemPerMultiprocessor;
     int regsPerMultiprocessor;
-    int managedMemSupported;
+    int managedMemory;
     int isMultiGpuBoard;
     int multiGpuBoardGroupID;
+    int singleToDoublePrecisionPerfRatio;
     int pageableMemoryAccess;
     int concurrentManagedAccess;
     int computePreemptionSupported;
