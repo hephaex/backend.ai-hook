@@ -98,24 +98,38 @@ struct cudaDeviceProp {
 typedef int CUresult;
 typedef int CUdevice;
 typedef unsigned int CUdeviceptr;
-typedef int (*orig_cuDeviceGetName_ftype)(char *name, int len, CUdevice dev);
-typedef int (*orig_cuDeviceTotalMem_ftype)(size_t *bytes, CUdevice dev);
-typedef int (*orig_cuDeviceGetAttribute_ftype)(int *pi, int attrib, CUdevice dev);
-typedef int (*orig_cuMemGetInfo_ftype)(size_t *free, size_t *total);
+
+#define REPLACE_CU_SYMBOL(symbol, ...) \
+typedef int (*orig_##symbol##_ftype)(__VA_ARGS__); \
+static orig_##symbol##_ftype orig_##symbol = NULL; \
+int symbol(__VA_ARGS__) { \
+    do { \
+        if (orig_##symbol == NULL) { \
+            void *lib = _ensure_libcuda(); \
+            orig_##symbol = (orig_##symbol##_ftype) \
+                    dlsym(lib, #symbol); \
+        } \
+        assert(orig_##symbol != NULL); \
+    } while (0);
+
+#define REPLACE_CUDA_SYMBOL(symbol, ...) \
+typedef int (*orig_##symbol##_ftype)(__VA_ARGS__); \
+static orig_##symbol##_ftype orig_##symbol = NULL; \
+int symbol(__VA_ARGS__) { \
+    do { \
+        if (orig_##symbol == NULL) { \
+            void *lib = _ensure_libcudart(); \
+            orig_##symbol = (orig_##symbol##_ftype) \
+                    dlsym(lib, #symbol); \
+        } \
+        assert(orig_##symbol != NULL); \
+    } while (0);
 
 typedef int cudaError_t;
 typedef void* cudaStream_t;
-typedef cudaError_t (*orig_cudaGetDevProp_ftype)(struct cudaDeviceProp *, int);
-
 
 static void *orig_libcuda = NULL;
 static void *orig_libcudart = NULL;
-
-static orig_cuDeviceGetName_ftype orig_devgetname = NULL;
-static orig_cuDeviceTotalMem_ftype orig_devtotalmem = NULL;
-static orig_cuDeviceGetAttribute_ftype orig_devgetattr = NULL;
-static orig_cuMemGetInfo_ftype orig_memgetinfo = NULL;
-static orig_cudaGetDevProp_ftype orig_getdevprop = NULL;
 
  #define min(a,b) \
    ({ __typeof__ (a) _a = (a); \
@@ -211,16 +225,9 @@ static int _get_configured_gpu_proc_limit()
 
 /* Override driver APIs */
 
-int cuDeviceGetName(char* name, int len, CUdevice dev)
-{
+REPLACE_CU_SYMBOL(cuDeviceGetName, char* name, int len, CUdevice dev)
     char orig_name[256];
-    if (orig_devgetname == NULL) {
-        void *lib = _ensure_libcuda();
-        orig_devgetname = (orig_cuDeviceGetName_ftype)
-                dlsym(lib, "cuDeviceGetName");
-    }
-    assert(orig_devgetname != NULL);
-    int ret = orig_devgetname(orig_name, 256, dev);
+    int ret = orig_cuDeviceGetName(orig_name, 256, dev);
     if (ret == CUDA_SUCCESS) {
         // Hide original GPU name.
         memset(name, 0, len);
@@ -229,16 +236,8 @@ int cuDeviceGetName(char* name, int len, CUdevice dev)
     return ret;
 }
 
-
-int cuMemGetInfo(size_t *free, size_t *total)
-{
-    if (orig_memgetinfo == NULL) {
-        void *lib = _ensure_libcuda();
-        orig_memgetinfo = (orig_cuMemGetInfo_ftype)
-                dlsym(lib, "cuMemGetInfo_v2");
-    }
-    assert(orig_memgetinfo != NULL);
-    int ret = orig_memgetinfo(free, total);
+REPLACE_CU_SYMBOL(cuMemGetInfo_v2, size_t *free, size_t *total)
+    int ret = orig_cuMemGetInfo_v2(free, total);
     size_t limit = _get_configured_gpu_mem_limit();
     if (ret == CUDA_SUCCESS && limit != 0) {
         *free = min(limit, *free);
@@ -248,21 +247,14 @@ int cuMemGetInfo(size_t *free, size_t *total)
 }
 
 
-int cuMemGetInfo_v2(size_t *free, size_t *total)
+int cuMemGetInfo(size_t *free, size_t *total)
 {
-    return cuMemGetInfo(free, total);
+    return cuMemGetInfo_v2(free, total);
 }
 
 
-int cuDeviceTotalMem(size_t *bytes, CUdevice dev)
-{
-    if (orig_devtotalmem == NULL) {
-        void *lib = _ensure_libcuda();
-        orig_devtotalmem = (orig_cuDeviceTotalMem_ftype)
-                dlsym(lib, "cuDeviceTotalMem");
-    }
-    assert(orig_devtotalmem != NULL);
-    int ret = orig_devtotalmem(bytes, dev);
+REPLACE_CU_SYMBOL(cuDeviceTotalMem_v2, size_t *bytes, CUdevice dev)
+    int ret = orig_cuDeviceTotalMem_v2(bytes, dev);
     size_t limit = _get_configured_gpu_mem_limit();
     if (ret == CUDA_SUCCESS && limit != 0) {
         *bytes = min(limit, *bytes);
@@ -270,22 +262,14 @@ int cuDeviceTotalMem(size_t *bytes, CUdevice dev)
     return ret;
 }
 
-
-int cuDeviceTotalMem_v2(size_t *bytes, CUdevice dev)
+int cuDeviceTotalMem(size_t *bytes, CUdevice dev)
 {
-    return cuDeviceTotalMem(bytes, dev);
+    return cuDeviceTotalMem_v2(bytes, dev);
 }
 
 
-int cuDeviceGetAttribute(int *pi, int attrib, CUdevice dev)
-{
-    if (orig_devgetattr == NULL) {
-        void *lib = _ensure_libcuda();
-        orig_devgetattr = (orig_cuDeviceGetAttribute_ftype)
-                dlsym(lib, "cuDeviceGetAttribute");
-    }
-    assert(orig_devgetattr != NULL);
-    int ret = orig_devgetattr(pi, attrib, dev);
+REPLACE_CU_SYMBOL(cuDeviceGetAttribute, int *pi, int attrib, CUdevice dev)
+    int ret = orig_cuDeviceGetAttribute(pi, attrib, dev);
     int proc_limit = 0;
     if (ret == CUDA_SUCCESS) {
         switch (attrib) {
@@ -311,17 +295,10 @@ int cudaMemGetInfo(size_t *free, size_t *total)
 }
 
 
-cudaError_t cudaGetDeviceProperties(struct cudaDeviceProp *prop, int deviceId)
-{
+REPLACE_CUDA_SYMBOL(cudaGetDeviceProperties, struct cudaDeviceProp *prop, int deviceId)
     size_t gpu_mem_limit = _get_configured_gpu_mem_limit();
     int gpu_proc_limit = _get_configured_gpu_proc_limit();
-    if (orig_getdevprop == NULL) {
-        void *lib = _ensure_libcudart();
-        orig_getdevprop = (orig_cudaGetDevProp_ftype)
-                dlsym(lib, "cudaGetDeviceProperties");
-    }
-    assert(orig_getdevprop != NULL);
-    cudaError_t ret = orig_getdevprop(prop, deviceId);
+    cudaError_t ret = orig_cudaGetDeviceProperties(prop, deviceId);
     if (ret == CUDA_SUCCESS && prop != NULL) {
         memset(prop->name, 0, 256);
         snprintf(prop->name, 256, "CUDA GPU");
