@@ -10,30 +10,6 @@
 #include <dlfcn.h>
 
 
-static void *orig_libcuda = NULL;
-static void *orig_libcudart = NULL;
-
-
-static inline void *_ensure_libcuda()
-{
-    if (orig_libcuda == NULL) {
-        orig_libcuda = dlopen("libcuda.so", RTLD_LAZY);
-    }
-    assert(orig_libcuda != NULL);
-    return orig_libcuda;
-}
-
-
-static inline void *_ensure_libcudart()
-{
-    if (orig_libcudart == NULL) {
-        orig_libcudart = dlopen("libcudart.so", RTLD_LAZY);
-    }
-    assert(orig_libcudart != NULL);
-    return orig_libcudart;
-}
-
-
 /* Below OVERRIDE_* macros are to write override functions
  * for specific library symbolsn with reference to the
  * original symbol. */
@@ -46,34 +22,6 @@ rettype symbol(__VA_ARGS__) { \
         if (orig_##symbol == NULL) { \
             orig_##symbol = (orig_##symbol##_ftype) \
                     dlsym(RTLD_NEXT, #symbol); \
-        } \
-        assert(orig_##symbol != NULL); \
-    } while (0);
-
-
-#define OVERRIDE_CU_SYMBOL(rettype, symbol, ...) \
-typedef rettype (*orig_##symbol##_ftype)(__VA_ARGS__); \
-static orig_##symbol##_ftype orig_##symbol = NULL; \
-rettype symbol(__VA_ARGS__) { \
-    do { \
-        if (orig_##symbol == NULL) { \
-            void *lib = _ensure_libcuda(); \
-            orig_##symbol = (orig_##symbol##_ftype) \
-                    dlsym(lib, #symbol); \
-        } \
-        assert(orig_##symbol != NULL); \
-    } while (0);
-
-
-#define OVERRIDE_CUDA_SYMBOL(rettype, symbol, ...) \
-typedef rettype (*orig_##symbol##_ftype)(__VA_ARGS__); \
-static orig_##symbol##_ftype orig_##symbol = NULL; \
-rettype symbol(__VA_ARGS__) { \
-    do { \
-        if (orig_##symbol == NULL) { \
-            void *lib = _ensure_libcudart(); \
-            orig_##symbol = (orig_##symbol##_ftype) \
-                    dlsym(lib, #symbol); \
         } \
         assert(orig_##symbol != NULL); \
     } while (0);
@@ -92,6 +40,12 @@ rettype symbol(__VA_ARGS__) { \
 #define MAX_KLEN 256
 #define MAX_VLEN 256
 #define MAX_PATH 260
+
+
+static inline bool has_prefix(const char *pre, const char *str)
+{
+    return strncmp(pre, str, strlen(pre)) == 0;
+}
 
 
 static inline int read_config

@@ -7,6 +7,79 @@
 #include <string.h>
 #include <assert.h>
 #include <limits.h>
+#include <dirent.h>
+
+
+static void *orig_libcuda = NULL;
+static void *orig_libcudart = NULL;
+
+
+static inline void *_ensure_libcuda()
+{
+    if (orig_libcuda == NULL) {
+        orig_libcuda = dlopen("libcuda.so", RTLD_LAZY);
+    }
+    assert(orig_libcuda != NULL);
+    return orig_libcuda;
+}
+
+
+static inline void *_ensure_libcudart()
+{
+    if (orig_libcudart == NULL) {
+        char filename[MAX_PATH] = {0};
+        bool found = false;
+        DIR *d = NULL;
+        d = opendir("/usr/local/cuda/lib64");
+        if (d) {
+            struct dirent *dir = NULL;
+            while ((dir = readdir(d)) != NULL) {
+                if (has_prefix("libcudart.so.", dir->d_name)) {
+                    strncpy(filename, dir->d_name, MAX_PATH);
+                    found = true;
+                    break;
+                }
+            }
+            closedir(d);
+        }
+        if (found) {
+            orig_libcudart = dlopen(filename, RTLD_LAZY);
+        } else {
+            // Try fallback with non-versioned filename
+            orig_libcudart = dlopen("libcudart.so", RTLD_LAZY);
+        }
+    }
+    assert(orig_libcudart != NULL);
+    return orig_libcudart;
+}
+
+
+#define OVERRIDE_CU_SYMBOL(rettype, symbol, ...) \
+typedef rettype (*orig_##symbol##_ftype)(__VA_ARGS__); \
+static orig_##symbol##_ftype orig_##symbol = NULL; \
+rettype symbol(__VA_ARGS__) { \
+    do { \
+        if (orig_##symbol == NULL) { \
+            void *lib = _ensure_libcuda(); \
+            orig_##symbol = (orig_##symbol##_ftype) \
+                    dlsym(lib, #symbol); \
+        } \
+        assert(orig_##symbol != NULL); \
+    } while (0);
+
+
+#define OVERRIDE_CUDA_SYMBOL(rettype, symbol, ...) \
+typedef rettype (*orig_##symbol##_ftype)(__VA_ARGS__); \
+static orig_##symbol##_ftype orig_##symbol = NULL; \
+rettype symbol(__VA_ARGS__) { \
+    do { \
+        if (orig_##symbol == NULL) { \
+            void *lib = _ensure_libcudart(); \
+            orig_##symbol = (orig_##symbol##_ftype) \
+                    dlsym(lib, #symbol); \
+        } \
+        assert(orig_##symbol != NULL); \
+    } while (0);
 
 
 static inline size_t _get_configured_gpu_mem_limit()
