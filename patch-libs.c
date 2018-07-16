@@ -1,4 +1,4 @@
-#define _GNU_SOURCE   // enable GNU extensions
+#include "patch.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -12,15 +12,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-
-#include <unistd.h>
-#include <dlfcn.h>
-
-typedef long (*orig_sysconf_ftype)(int flag);
-typedef int (*orig_scanf_ftype)(const char *format, ...);
-typedef int (*orig_vscanf_ftype)(const char *format, va_list arg);
-
-static orig_sysconf_ftype orig_sysconf = NULL;
 
 static const char *input_host = "127.0.0.1";
 static const int input_port = 65000;
@@ -66,12 +57,8 @@ static int nproc_from_sysfs_cpuset()
     return result;
 }
 
-long sysconf(int flag)
-{
-    if (orig_sysconf == NULL) {
-        orig_sysconf = (orig_sysconf_ftype) dlsym(RTLD_NEXT, "sysconf");
-    }
-    assert(orig_sysconf != NULL);
+
+OVERRIDE_LIBC_SYMBOL(long, sysconf, int flag)
     switch (flag) {
     case _SC_NPROCESSORS_ONLN:
     case _SC_NPROCESSORS_CONF:
@@ -81,6 +68,7 @@ long sysconf(int flag)
     }
     return orig_sysconf(flag);
 }
+
 
 int scanf(const char *format, ...)
 {
@@ -114,6 +102,7 @@ int scanf(const char *format, ...)
     va_end(args);
     return ret;
 }
+
 
 int vscanf(const char *format, va_list args)
 {
