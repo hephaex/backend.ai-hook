@@ -10,19 +10,8 @@
 #include <dlfcn.h>
 
 
-static void *orig_libc = NULL;
 static void *orig_libcuda = NULL;
 static void *orig_libcudart = NULL;
-
-
-static inline void *_ensure_libc()
-{
-    if (orig_libc == NULL) {
-        orig_libc = dlopen("libc.so", RTLD_LAZY);
-    }
-    assert(orig_libc != NULL);
-    return orig_libc;
-}
 
 
 static inline void *_ensure_libcuda()
@@ -55,9 +44,8 @@ static orig_##symbol##_ftype orig_##symbol = NULL; \
 rettype symbol(__VA_ARGS__) { \
     do { \
         if (orig_##symbol == NULL) { \
-            void *lib = _ensure_libc(); \
             orig_##symbol = (orig_##symbol##_ftype) \
-                    dlsym(lib, #symbol); \
+                    dlsym(RTLD_NEXT, #symbol); \
         } \
         assert(orig_##symbol != NULL); \
     } while (0);
