@@ -1,4 +1,4 @@
-# Sorna Hook
+# Backend.AI Hook
 
 A private hook library to override library-level functions inside REPL containers
 
@@ -7,7 +7,7 @@ A private hook library to override library-level functions inside REPL container
 
  * Override `sysconf()` to expose the number of actually schedulable CPU cores based on sysfs cgroup
    CPU set information.
- * Override `scanf()` to get the user keyboard input via the local Sorna Agent.
+ * Override `scanf()` to get the user keyboard input via the local Backend.AI-Agent.
 
 ## How to build
 
